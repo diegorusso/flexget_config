@@ -29,7 +29,7 @@ templates:
         target: hdtv+ 720p !10bit !h265
         quality: webrip+ 720p !10bit !h265
         propers: 16 hours
-        specials: no
+        specials: yes
     content_size:
       min: 350
     content_filter:
@@ -72,7 +72,7 @@ templates:
         - \bdual\b
         - \b3d\b
         - \b(fr)(ench)?\b
-        - \b(ita)(lian)?\b
+          #    - \b(ita)(lian)?\b
         - \b(spa)(nish)?\b
         - \b(ger)(man)?\b
         - \bcastellano\b
@@ -137,7 +137,6 @@ templates:
     domain_delay:
       thepiratebay.se: 10 seconds
       thepiratebay.org: 10 seconds
-      nyaa.se: 3 seconds
 
 ##### Transmission series config
 #
@@ -255,7 +254,7 @@ tasks:
 ##### Download episodes from manually downloaded torrents
 #
   download-series-manual:
-    priority: 11
+    priority: 4
     template:
       - disable-seen-retry
       - series-metainfo
@@ -274,7 +273,7 @@ tasks:
 ##### Download episodes from RSS feeds
 #
   download-series-rss:
-    priority: 12
+    priority: 5
     manipulate:
       - url:
           replace:
@@ -294,7 +293,7 @@ tasks:
 ##### Download episodes from RSS magnets feeds, as a fallback from the previous task
 #
   download-series-magnets:
-    priority: 13
+    priority: 6
     template:
       - series
       - reject
@@ -312,7 +311,7 @@ tasks:
 ##### Discover and download older episodes and pilots from recently added series
 #
   download-series-discover:
-    priority: 14
+    priority: 7
     template:
       - series
       - reject
@@ -332,7 +331,7 @@ tasks:
 ##### Remove manually downloaded movies from the movie queue and trakt list
 #
   clean-movie-queue:
-    priority: 22
+    priority: 8
     template:
       - disable-seen-retry
       - movies-metainfo
@@ -353,7 +352,7 @@ tasks:
 ##### Fill the movie queue with movies from trakt list
 #
   fill-movie-queue:
-    priority: 23
+    priority: 9
     trakt_list:
       account: '{{secrets.trakt.account}}'
       list: '{{secrets.trakt.movies}}'
@@ -367,7 +366,7 @@ tasks:
 ##### Download movies manually downloaded torrents
 #
   download-movies-manual:
-    priority: 24
+    priority: 10
     template:
       - disable-seen-retry
       - movies-metainfo
@@ -391,7 +390,7 @@ tasks:
 ##### Discover and download 1080p movies
 #
   download-movies-1080p-discover:
-    priority: 26
+    priority: 11
     template:
       - movies-1080p
       - reject
@@ -424,7 +423,7 @@ tasks:
 ##### Discover and download 720p movies, if the movie is not recent
 #
   download-movies-720p-discover:
-    priority: 27
+    priority: 12
     template:
       - movies-720p
       - reject
@@ -459,7 +458,7 @@ tasks:
 ##### Move series from downloads folder to respective folders, along with existing subtitles and adding the files to the subtitle queue
 #
   move-series:
-    priority: 31
+    priority: 13
     template:
       - disable-seen-retry
       - series-metainfo
@@ -471,7 +470,7 @@ tasks:
     accept_all: yes
     move:
       to: "/{{secrets.folder.root}}{{secrets.folder.series}}{{tvdb_series_name|escape|replace('&#39;', '')|pathscrub}}/"
-      filename: "{{tvdb_series_name|escape|replace('&#39;', '')|pathscrub}} - {{tvdb_ep_id|default(series_id)}}{% if tvdb_ep_name|default(False) %} - {{tvdb_ep_name|pathscrub}}{% endif %}{% if quality|default(False) %} - [{{quality}}]{% endif %}"
+      rename: "{{tvdb_series_name|escape|replace('&#39;', '')|pathscrub}} - {{tvdb_ep_id|default(series_id)}}{% if tvdb_ep_name|default(False) %} - {{tvdb_ep_name|pathscrub}}{% endif %}{% if quality|default(False) %} - [{{quality}}]{% endif %}"
       along:
         extensions:
           - srt
@@ -492,7 +491,7 @@ tasks:
 ##### Move movies from downloads folder to the movies folder, along with possible subtitles and adding the files to the subtitle queue
 #
   move-movies:
-    priority: 33
+    priority: 14
     template:
       - disable-seen-retry
       - movies-metainfo
@@ -508,7 +507,7 @@ tasks:
         - \bsample\b
     move:
       to: '/{{secrets.folder.root}}{{secrets.folder.movies}}'
-      filename: "{{tmdb_name|pathscrub}} ({{tmdb_year}}){% if quality|default(False) %} - [{{quality}}]{% endif %}"
+      rename: "{{tmdb_name|pathscrub}} ({{tmdb_year}}){% if quality|default(False) %} - [{{quality}}]{% endif %}"
       along:
         extensions:
           - srt
@@ -529,7 +528,7 @@ tasks:
 ##### Download subtitles for the previously queued files
 #
   download-subtitles:
-    priority: 35
+    priority: 15
     template:
       - disable-seen-retry
     subtitle_list:
@@ -547,7 +546,7 @@ tasks:
 ##### Clean finished torrents from transmission
 #
   clean-transmission:
-    priority: 37
+    priority: 16
     disable: details
     clean_transmission:
       <<: *transmission-settings
@@ -557,7 +556,7 @@ tasks:
 ##### Update trakt series list from local series folders, excluding the ones that already ended
 #
   update-series-list:
-    priority: 41
+    priority: 17
     template:
       - disable-seen-retry
       - series-metainfo
@@ -582,7 +581,7 @@ tasks:
 ##### Clean the series that already ended from trakt series list
 #
   clean-series-list:
-    priority: 43
+    priority: 18
     delay: 8 day
     template:
       - disable-seen-retry
