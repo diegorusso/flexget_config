@@ -19,7 +19,7 @@ templates:
 #
   series:
     thetvdb_lookup: yes
-    include: series.yml
+#    include: series.yml
     configure_series:
       from:
         entry_list: trakt-series
@@ -35,19 +35,6 @@ templates:
     content_filter:
       require:
         - '*.mkv'
-
-##### Anime config
-#
-  anime:
-    include: anime.yml
-    configure_series:
-      from:
-        entry_list: myanimelist-series
-      settings:
-        identified_by: sequence
-        quality: 720p !10bit !h265
-        special_ids:
-          - OVA
 
 ##### Movies config
 #
@@ -146,7 +133,7 @@ templates:
     magnets: no
     # Might need to disable if you are getting errors connecting to https sources
     # Can remove if you upgrade to python 2.7.9+ or install requests[security]
-    #verify_ssl_certificates: no
+    verify_ssl_certificates: no
     domain_delay:
       thepiratebay.se: 10 seconds
       thepiratebay.org: 10 seconds
@@ -163,14 +150,6 @@ templates:
       content_filename: "{{tvdb_series_name|default(series_name)|pathscrub}} - {{tvdb_ep_id|default(series_id)}}{% if tvdb_ep_name|default(False) %} - {{tvdb_ep_name|pathscrub}}{% endif %}{% if quality|default(False) %} - [{{quality}}]{% endif %}"
       path: "/{{secrets.folder.root}}{{secrets.folder.downseries}}{{tvdb_series_name|default(series_name)|pathscrub}}/"
 
-##### Transmission anime config
-#
-  transmission-anime:
-    transmission:
-      <<: *transmission-settings
-      main_file_only: yes
-      content_filename: "{{series_name}} - ep{{series_id}} - [{{quality}}]"
-      path: "/{{secrets.folder.root}}{{secrets.folder.downanime}}{{series_name|pathscrub}}/"
 
 ##### Transmission movies config
 #
@@ -205,7 +184,7 @@ templates:
     metainfo_series: yes
     thetvdb_lookup: yes
 
-##### Guessit parsing for some series tasks and anime, not applied to all tasks because it causes issues with "name (year)" based series, like scandal
+##### Guessit parsing for some series tasks, not applied to all tasks because it causes issues with "name (year)" based series, like scandal
 #
   series-guessit:
     parsing:
@@ -273,35 +252,6 @@ tasks:
       - entry_list: trakt-series
 
 
-##### Purge the series list to allow full sync with myanimelist series list
-#
-  purge-anime-series-list:
-    priority: 6
-    template:
-      - disable-seen-retry
-    entry_list: myanimelist-series
-    accept_all: yes
-    list_remove:
-      - entry_list: myanimelist-series
-
-
-##### Fetch, format and output myanimelist series list to a custom entry list
-#
-  fill-anime-series-list:
-    priority: 8
-    template:
-      - disable-seen-retry
-      - series-metainfo
-    myanimelist:
-      user_id: '{{secrets.myanimelist.id}}'
-      list: both
-    accept_all: yes
-    set:
-      title: "{{myanimelist_name|re_replace('[-/:;.★](?=[a-zA-Z])', ' ')|re_replace('[:;](?![a-zA-Z])|[`´()]|TV|', '')|re_replace('Season ', 'S')|re_replace('  +', ' ')}}"
-    list_add:
-      - entry_list: myanimelist-series
-
-
 ##### Download episodes from manually downloaded torrents
 #
   download-series-manual:
@@ -325,6 +275,11 @@ tasks:
 #
   download-series-rss:
     priority: 12
+    manipulate:
+      - url:
+          replace:
+            regexp: 'http://extratorrent.cc/(?P<a>.*)'
+            format: 'http://extratorrent.unblockall.xyz/\g<a>'
     template:
       - series
       - reject
@@ -332,8 +287,8 @@ tasks:
       - transmission-series
       - pushbullet
     inputs:
-      - rss: https://eztv.ag/ezrss.xml
-      - rss: https://extratorrent.cc/rss.xml?cid=8&type=new
+      - rss: https://eztv.unblocked.stream/ezrss.xml
+      - rss: https://extratorrent.unblockall.xyz/rss.xml?cid=8&type=new
 
 
 ##### Download episodes from RSS magnets feeds, as a fallback from the previous task
@@ -373,102 +328,6 @@ tasks:
       from:
         - piratebay:
             category: highres tv
-
-
-##### Download anime from manually downloaded torrents
-#
-  download-anime-manual:
-    priority: 15
-    template:
-      - disable-seen-retry
-      - series-guessit
-      - transmission-anime
-      - pushbullet
-    filesystem:
-      path: '/{{secrets.folder.root}}{{secrets.folder.downanime}}'
-      mask: '*.torrent'
-    accept_all: yes
-    exec:
-      on_output:
-        for_accepted: rm -f "{{location}}"
-
-
-##### Download anime from RSS feed
-#
-  download-anime-rss:
-    priority: 16
-    template:
-      - anime
-      - torrents
-      - transmission-anime
-      - pushbullet
-    inputs:
-      - rss:
-          url: http://www.nyaa.se/?page=rss&cats=1_37&filter=2
-          all_entries: yes
-
-
-##### Discover and download anime
-#
-  download-anime-discover:
-    priority: 17
-    template:
-      - anime
-      - torrents
-      - transmission-anime
-      - pushbullet
-    metainfo_series: yes
-    discover:
-      release_estimations: ignore
-      interval: 15 minutes
-      what:
-        - next_series_episodes:
-            from_start: yes
-            backfill: yes
-      from:
-        - nyaa:
-            category: anime eng
-            filter: trusted only
-
-
-##### Download anime from RSS feed from all groups
-#
-  download-anime-all-rss:
-    priority: 18
-    delay: 2 hours
-    template:
-      - anime
-      - torrents
-      - transmission-anime
-      - pushbullet
-    inputs:
-      - rss:
-          url: http://www.nyaa.se/?page=rss&cats=1_37
-          all_entries: yes
-
-
-##### Discover and download anime from all groups
-#
-  download-anime-all-discover:
-    priority: 19
-    delay: 2 hours
-    template:
-      - anime
-      - torrents
-      - transmission-anime
-      - pushbullet
-    discover:
-      release_estimations: ignore
-      interval: 15 minutes
-      what:
-        - next_series_episodes:
-            from_start: yes
-            backfill: yes
-      from:
-        - nyaa:
-            category: anime eng
-            filter: all
-
 
 ##### Remove manually downloaded movies from the movie queue and trakt list
 #
@@ -628,34 +487,6 @@ tasks:
     exec:
       on_exit:
         phase: find '/{{secrets.folder.root}}{{secrets.folder.downseries}}'* -type d -empty -delete
-
-
-##### Move anime from downloads folder to respective folders
-#
-  move-anime:
-    priority: 32
-    template:
-      - disable-seen-retry
-      - series-guessit
-    filesystem:
-      path: '/{{secrets.folder.root}}{{secrets.folder.downanime}}'
-      recursive: yes
-      retrieve: files
-      regexp: '.*\.(avi|mkv|mp4)$'
-    metainfo_series: yes
-    accept_all: yes
-    move:
-      to: "/{{secrets.folder.root}}{{secrets.folder.anime}}{{series_name|default(title)|pathscrub}}/"
-      clean_source: 50
-    exec:
-      allow_background: yes
-      on_exit:
-        phase:
-          - find '/{{secrets.folder.root}}{{secrets.folder.downanime}}'* -type d -empty -delete
-### REMOVE THE LINES BELOW IF YOU DONT WANT TO RENAME ANIME WITH THE EXTERNAL SCRIPT
-          - '{{secrets.script.animerenamer}}'
-      on_output:
-        for_accepted: echo "{{location}}" >> '{{secrets.list.animerename}}'
 
 
 ##### Move movies from downloads folder to the movies folder, along with possible subtitles and adding the files to the subtitle queue
