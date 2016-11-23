@@ -1,4 +1,5 @@
 secrets: secrets.yml
+
 schedules:
   - tasks: ['populate-*', 'clean-*', 'update-*']
     schedule:
@@ -9,7 +10,7 @@ schedules:
   - tasks: ['*-discover', '*-manual']
     schedule:
       hour: '*/2'
-  - tasks: ['move-*', download-subtitles]
+  - tasks: ['move-*', 'download-subtitles']
     schedule:
       minute: 15,45
 
@@ -19,40 +20,30 @@ templates:
 #
   series:
     thetvdb_lookup: yes
-#    include: series.yml
     configure_series:
       from:
         entry_list: trakt-series
       settings:
         identified_by: ep
-        timeframe: 16 hours
-        target: hdtv+ 720p !10bit !h265
-        quality: webrip+ 720p !10bit !h265
-        propers: 16 hours
+        quality: webrip+ 720p
         specials: yes
     content_size:
-      min: 350
+      min: 20
     content_filter:
       require:
         - '*.mkv'
+        - '*.mp4'
+        - '*.avi'
 
 ##### Movies config
 #
-  movies-1080p:
-    tmdb_lookup: yes
-    movie_list: trakt-movies
-    quality: 1080p webdl+ !10bit !h265
-    content_size:
-      min: 1000
-      max: 6000
-
   movies-720p:
     tmdb_lookup: yes
     movie_list: trakt-movies
     quality: 720p webdl+ !10bit !h265
     content_size:
       min: 500
-      max: 3000
+      max: 5000
 
 ##### Transmission config
 #
@@ -66,17 +57,17 @@ templates:
 ##### Common rejections
 #
   reject:
-    regexp:
-      reject:
-        - (s|d)ub(s|bed|lado|titulado)?\b
-        - \bdual\b
-        - \b3d\b
-        - \b(fr)(ench)?\b
-          #    - \b(ita)(lian)?\b
-        - \b(spa)(nish)?\b
-        - \b(ger)(man)?\b
-        - \bcastellano\b
-        - \brus(sian)?\b
+      #    regexp:
+      #      reject:
+      #        - (s|d)ub(s|bed|lado|titulado)?\b
+      #        - \bdual\b
+      #        - \b3d\b
+      #        - \b(fr)(ench)?\b
+      #          #    - \b(ita)(lian)?\b
+      #        - \b(spa)(nish)?\b
+      #        - \b(ger)(man)?\b
+      #        - \bcastellano\b
+      #        - \brus(sian)?\b
     content_filter:
       reject:
         - '*.rar'
@@ -128,8 +119,8 @@ templates:
 #
   torrents:
     torrent_alive:
-      min_seeds: 3
-      reject_for: 15 minutes
+      min_seeds: 2
+      reject_for: 5 minutes
     magnets: no
     # Might need to disable if you are getting errors connecting to https sources
     # Can remove if you upgrade to python 2.7.9+ or install requests[security]
@@ -145,9 +136,7 @@ templates:
       main_file_only: yes
       include_subs: yes
       rename_like_files: yes
-      content_filename: "{{tvdb_series_name|default(series_name)|pathscrub}} - {{tvdb_ep_id|default(series_id)}}{% if tvdb_ep_name|default(False) %} - {{tvdb_ep_name|pathscrub}}{% endif %}{% if quality|default(False) %} - [{{quality}}]{% endif %}"
       path: "/{{secrets.folder.root}}{{secrets.folder.downseries}}{{tvdb_series_name|default(series_name)|pathscrub}}/"
-
 
 ##### Transmission movies config
 #
@@ -157,7 +146,6 @@ templates:
       main_file_only: yes
       include_subs: yes
       rename_like_files: yes
-      content_filename: "{{tmdb_name|pathscrub}} ({{tmdb_year}}){% if quality|default(False) %} - [{{quality}}]{% endif %}"
       path: "/{{secrets.folder.root}}{{secrets.folder.downmovies}}{{movie_name|pathscrub}}"
 
 ##### Pushbullet config
@@ -285,7 +273,7 @@ tasks:
       - transmission-series
       - pushbullet
     inputs:
-      - rss: https://eztv.unblocked.stream/ezrss.xml
+      - rss: https://eztv.unblocked.video/ezrss.xml
       - rss: https://extratorrent.unblockall.xyz/rss.xml?cid=8&type=new
 
 
@@ -386,43 +374,10 @@ tasks:
           type: movies
 
 
-##### Discover and download 1080p movies
-#
-  download-movies-1080p-discover:
-    priority: 11
-    template:
-      - movies-1080p
-      - reject
-      - torrents
-      - transmission-movies
-      - pushbullet
-    exists_movie:
-      - '/{{secrets.folder.root}}{{secrets.folder.downmovies}}'
-      - '/{{secrets.folder.root}}{{secrets.folder.movies}}'
-    discover:
-      release_estimations: loose
-      interval: 15 minutes
-      what:
-        - movie_list: trakt-movies
-      from:
-        - piratebay:
-            category: highres movies
-        - extratorrent:
-            category: movies
-    list_match:
-      from:
-        - movie_list: trakt-movies
-    list_remove:
-      - trakt_list:
-          account: '{{secrets.trakt.account}}'
-          list: '{{secrets.trakt.movies}}'
-          type: movies
-
-
 ##### Discover and download 720p movies, if the movie is not recent
 #
   download-movies-720p-discover:
-    priority: 12
+    priority: 11
     template:
       - movies-720p
       - reject
@@ -457,7 +412,7 @@ tasks:
 ##### Move series from downloads folder to respective folders, along with existing subtitles and adding the files to the subtitle queue
 #
   move-series:
-    priority: 13
+    priority: 12
     template:
       - disable-seen-retry
       - series-metainfo
@@ -469,7 +424,6 @@ tasks:
     accept_all: yes
     move:
       to: "/{{secrets.folder.root}}{{secrets.folder.series}}{{tvdb_series_name|escape|replace('&#39;', '')|pathscrub}}/"
-      rename: "{{tvdb_series_name|escape|replace('&#39;', '')|pathscrub}} - {{tvdb_ep_id|default(series_id)}}{% if tvdb_ep_name|default(False) %} - {{tvdb_ep_name|pathscrub}}{% endif %}{% if quality|default(False) %} - [{{quality}}]{% endif %}"
       along:
         extensions:
           - srt
@@ -490,7 +444,7 @@ tasks:
 ##### Move movies from downloads folder to the movies folder, along with possible subtitles and adding the files to the subtitle queue
 #
   move-movies:
-    priority: 14
+    priority: 13
     template:
       - disable-seen-retry
       - movies-metainfo
@@ -506,7 +460,6 @@ tasks:
         - \bsample\b
     move:
       to: '/{{secrets.folder.root}}{{secrets.folder.movies}}'
-      rename: "{{tmdb_name|pathscrub}} ({{tmdb_year}}){% if quality|default(False) %} - [{{quality}}]{% endif %}"
       along:
         extensions:
           - srt
@@ -527,7 +480,7 @@ tasks:
 ##### Download subtitles for the previously queued files
 #
   download-subtitles:
-    priority: 15
+    priority: 14
     template:
       - disable-seen-retry
     subtitle_list:
@@ -545,7 +498,7 @@ tasks:
 ##### Clean finished torrents from transmission
 #
   clean-transmission:
-    priority: 16
+    priority: 15
     disable: details
     clean_transmission:
       <<: *transmission-settings
@@ -555,7 +508,7 @@ tasks:
 ##### Update trakt series list from local series folders, excluding the ones that already ended
 #
   update-series-list:
-    priority: 17
+    priority: 16
     template:
       - disable-seen-retry
       - series-metainfo
@@ -580,7 +533,7 @@ tasks:
 ##### Clean the series that already ended from trakt series list
 #
   clean-series-list:
-    priority: 18
+    priority: 17
     delay: 8 day
     template:
       - disable-seen-retry
