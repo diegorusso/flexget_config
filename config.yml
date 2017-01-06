@@ -25,6 +25,10 @@ templates:
         entry_list: trakt-series
       settings:
         identified_by: ep
+        timeframe: 8 hours
+        target: hdtv+ 720p !10bit !h265
+        quality: webrip+ 720p !10bit !h265
+        propers: 8 hours
         quality: webrip+ 720p
         specials: yes
     content_size:
@@ -136,7 +140,7 @@ templates:
       main_file_only: yes
       include_subs: yes
       rename_like_files: yes
-      path: "/{{secrets.folder.root}}{{secrets.folder.downseries}}{{tvdb_series_name|default(series_name)|pathscrub}}/"
+      path: "/{{secrets.folder.host_series}}{{tvdb_series_name|default(series_name)|pathscrub}}/"
 
 ##### Transmission movies config
 #
@@ -146,15 +150,15 @@ templates:
       main_file_only: yes
       include_subs: yes
       rename_like_files: yes
-      path: "/{{secrets.folder.root}}{{secrets.folder.downmovies}}{{movie_name|pathscrub}}"
+      path: "/{{secrets.folder.host_movies}}{{movie_name|pathscrub}}"
 
 ##### Pushbullet config
 #
   pushbullet:
     pushbullet:
-      apikey: '{{secrets.pushbullet.api}}'
+      api_key: '{{secrets.pushbullet.api_key}}'
       title: "[flexget] {{task}}"
-      body: "{{title}}"
+      message: "{{title}}"
 
 ##### Disable builtins for some tasks
 #
@@ -249,7 +253,7 @@ tasks:
       - transmission-series
       - pushbullet
     filesystem:
-      path: '/{{secrets.folder.root}}{{secrets.folder.downseries}}'
+      path: '/{{secrets.folder.root}}{{secrets.folder.downloads}}{{secrets.folder.series}}'
       mask: '*.torrent'
     accept_all: yes
     exec:
@@ -275,6 +279,8 @@ tasks:
     inputs:
       - rss: https://eztv.unblocked.video/ezrss.xml
       - rss: https://extratorrent.unblockall.xyz/rss.xml?cid=8&type=new
+      - rss: https://pirateproxy.vip/rss/top100/205
+      - rss: https://pirateproxy.vip/rss/top100/208
 
 
 ##### Download episodes from RSS magnets feeds, as a fallback from the previous task
@@ -360,7 +366,7 @@ tasks:
       - transmission-movies
       - pushbullet
     filesystem:
-      path: '/{{secrets.folder.root}}{{secrets.folder.downmovies}}'
+      path: '/{{secrets.folder.root}}{{secrets.folder.downloads}}{{secrets.folder.movies}}'
       mask: '*.torrent'
     accept_all: yes
     exec:
@@ -385,7 +391,7 @@ tasks:
       - transmission-movies
       - pushbullet
     exists_movie:
-      - '/{{secrets.folder.root}}{{secrets.folder.downmovies}}'
+      - '/{{secrets.folder.root}}{{secrets.folder.downloads}}{{secrets.folder.movies}}'
       - '/{{secrets.folder.root}}{{secrets.folder.movies}}'
     discover:
       release_estimations: loose
@@ -417,7 +423,7 @@ tasks:
       - disable-seen-retry
       - series-metainfo
     filesystem:
-      path: '/{{secrets.folder.root}}{{secrets.folder.downseries}}'
+      path: '/{{secrets.folder.root}}{{secrets.folder.downloads}}{{secrets.folder.series}}'
       recursive: yes
       retrieve: files
       regexp: '.*\.(avi|mkv|mp4)$'
@@ -436,9 +442,9 @@ tasks:
           list: subtitles
           path: "{{location}}"
           remove_after: 7 days
-    exec:
-      on_exit:
-        phase: find '/{{secrets.folder.root}}{{secrets.folder.downseries}}'* -type d -empty -delete
+  #    exec:
+  #    on_exit:
+  #      phase: find '/{{secrets.folder.root}}{{secrets.folder.downseries}}'* -type d -empty -delete
 
 
 ##### Move movies from downloads folder to the movies folder, along with possible subtitles and adding the files to the subtitle queue
@@ -449,7 +455,7 @@ tasks:
       - disable-seen-retry
       - movies-metainfo
     filesystem:
-      path: '/{{secrets.folder.root}}{{secrets.folder.downmovies}}'
+      path: '/{{secrets.folder.root}}{{secrets.folder.downloads}}{{secrets.folder.movies}}'
       recursive: yes
       retrieve: files
       regexp: '.*\.(avi|mkv|mp4)$'
@@ -472,9 +478,9 @@ tasks:
           list: subtitles
           path: "{{location}}"
           remove_after: 7 days
-    exec:
-      on_exit:
-        phase: find '/{{secrets.folder.root}}{{secrets.folder.downmovies}}'* -type d -empty -delete
+    #exec:
+    #  on_exit:
+    #    phase: find '/{{secrets.folder.root}}{{secrets.folder.downmovies}}'* -type d -empty -delete
 
 
 ##### Download subtitles for the previously queued files
@@ -483,6 +489,13 @@ tasks:
     priority: 14
     template:
       - disable-seen-retry
+    filesystem:
+      path:
+        - '/{{secrets.folder.root}}{{secrets.folder.downloads}}'
+      regexp: '.*\.(avi|mkv|mp4)$'  # only include filenames with these extensions
+      recursive: yes
+    accept_all: yes
+    seen: local
     subtitle_list:
       list: subtitles
     list_match:
